@@ -4,18 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Math Quest: Functions Mastery - Seleksi SMA Favorit</title>
+    
+    <!-- Google Fonts (Loaded via link tag for reliable performance and fast rendering) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
     <!-- Tailwind CSS for modern responsive styling -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
     <!-- KaTeX for beautiful math equations -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.css">
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/katex.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/katex@0.16.8/dist/contrib/auto-render.min.js"></script>
     
+    <script>
+        // Set Plus Jakarta Sans as the default sans font in Tailwind Configuration
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
-        
         body {
-            font-family: 'Plus Jakarta Sans', sans-serif;
             background: linear-gradient(135deg, #f5f3ff 0%, #f0fdf4 50%, #fef2f2 100%);
         }
 
@@ -863,13 +880,72 @@
 
         // Interactive State variables
         let currentIdx = 0; 
-        let filteredDatabase = [...questionDatabase];
+        let filteredDatabase = []; // Will be populated after dynamic shuffling
         let currentFilter = 'all';
         let userProgress = {}; 
         let totalXP = 0;
 
+        // Seeded Pseudo-Random Generator (Deterministic based on a seed number)
+        function seededRandom(seed) {
+            let x = Math.sin(seed) * 10000;
+            return x - Math.floor(x);
+        }
+
+        // Seeded Shuffle to always output the same randomized layout for a given question ID
+        function seededShuffle(array, seed) {
+            let currentIndex = array.length, temporaryValue, randomIndex;
+            let currentSeed = seed;
+
+            while (0 !== currentIndex) {
+                let r = seededRandom(currentSeed);
+                currentSeed += 1; 
+                randomIndex = Math.floor(r * currentIndex);
+                currentIndex -= 1;
+
+                temporaryValue = array[currentIndex];
+                array[currentIndex] = array[randomIndex];
+                array[randomIndex] = temporaryValue;
+            }
+
+            return array;
+        }
+
+        // Run the Shuffle on database before loading questions
+        function shuffleAllQuestions() {
+            questionDatabase.forEach(q => {
+                // Keep trace of original choices
+                const origChoices = [
+                    { key: 'A', text: q.options.A },
+                    { key: 'B', text: q.options.B },
+                    { key: 'C', text: q.options.C },
+                    { key: 'D', text: q.options.D }
+                ];
+
+                // Shuffle utilizing question id as seed
+                const shuffled = seededShuffle(origChoices, q.id);
+
+                // Build new options object and find where the correct answer (originally 'A') landed
+                const newOptions = {};
+                let newCorrectKey = 'A';
+                const keys = ['A', 'B', 'C', 'D'];
+
+                shuffled.forEach((item, index) => {
+                    const assignedKey = keys[index];
+                    newOptions[assignedKey] = item.text;
+                    if (item.key === 'A') { // original correct option is always 'A'
+                        newCorrectKey = assignedKey;
+                    }
+                });
+
+                // Override original question configuration
+                q.options = newOptions;
+                q.correct = newCorrectKey;
+            });
+        }
+
         // Run on Page Load
         window.onload = function() {
+            shuffleAllQuestions(); // Shuffle answers dynamically first
             loadProgress();
             filterCategory('all');
             initScratchpad();
